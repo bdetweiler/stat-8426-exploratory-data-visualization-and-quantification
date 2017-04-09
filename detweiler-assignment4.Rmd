@@ -1,0 +1,275 @@
+---
+title: "Assignment 4"
+author: "Brian Detweiler"
+date: "April 11, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed(0)
+library(knitr)
+library(TSA)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(GGally)
+library(ggmap)
+```
+
+# 1. Visual quantification: To visualize the following quantity, mention what plot you will generate
+
+## 1. Association between two variables when 
+
+### a) both are numeric 
+
+**Answer:** We would use a scatter plot.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+data(mtcars)
+
+ggplot(mtcars, aes(x=wt, y=mpg)) +
+  geom_point() +
+  geom_smooth(method="loess") +
+  labs(title="Miles per Gallon by Weight", x="Weight", y="Miles Per Gallon")
+```
+
+### b) one numeric and one categorical 
+
+**Answer:** For this we could use a boxplot.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+ggplot(mtcars, aes(x=factor(cyl), y=mpg)) +
+  geom_boxplot() +
+  labs(title="Miles per Gallon by Number of Cylinders", x="Weight", y="Miles Per Gallon") +
+  scale_x_discrete("Cylinder Count", labels=c("Four", "Six", "Eight"))
+```
+
+### c) both are categorical
+
+**Answer:** A stacked barchart will work in this case.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+factor(mtcars$am)
+
+ggplot(mtcars, aes(factor(cyl), fill=factor(am))) + 
+  geom_bar() +
+  labs(title="Automatic vs. Manual by Number of Cylinders", x="Cylinders", y="Count") +
+  scale_x_discrete("Number of Cylinders", labels=c("Four", "Six", "Eight")) +
+  scale_fill_discrete("Transmission", 
+                      labels=c("Auto", "Manual"))
+
+```
+
+## Association of a categorical variable with many numerical variables together
+
+**Answer:** For this we can use a parallel coordinate plot.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+data(diamonds)
+diamonds.samp <- diamonds[sample(1:dim(diamonds)[1], 100), ]
+
+ggparcoord(data = diamonds.samp, columns = c(1, 5:7), groupColumn = 'cut') +
+  labs(title='Diamonds')
+```
+
+
+## Difference of two variables in terms of 
+
+### a) spread 
+
+**Answer:** Either a side-by-side boxplot or an overlayed density plot will work here.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+df <- rbind(data.frame(x=mtcars$disp, Distribution='Disp'),
+            data.frame(x=mtcars$hp, Distribution='HP'))
+ggplot(df, aes(x, group=Distribution, col=Distribution, fill=Distribution)) +
+  geom_density(position='dodge', alpha=0.1) +
+  labs(title='Distribution of Displacement vs. Horse Power', x='', y='Density') 
+```
+
+### b) center 
+
+**Answer:** A boxplot shows the median, or we can add a mean and median to a density plot.
+
+**Example:** Here, we'll show both options.
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+hp <- mtcars$hp
+lower <- quantile(hp)[[2]]
+upper <- quantile(hp)[[4]]
+middle <- quantile(hp)[[3]]
+ymin <- quantile(hp)[[1]]
+ymax <- quantile(hp)[[5]]
+ggplot(data.frame(hp), aes(hp, x=0)) +
+  geom_boxplot(stat = "identity", aes(lower=lower, upper=upper, middle=middle, ymin=ymin, ymax=ymax)) +
+  labs(title="Horse Power", x="", y="Horse Power") +
+  scale_x_discrete(labels=(""))
+```
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+ggplot(mtcars, aes(hp, fill=hp)) +
+  geom_density() +
+  geom_vline(xintercept = mean(hp), col="red") +
+  geom_vline(xintercept = median(hp), col="blue") +
+  labs(title='Distribution of Displacement vs. Horse Power', x='', y='Density') 
+```
+
+### c) overall distribution
+
+**Answer:** A distribution plot.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+ggplot(mtcars, aes(hp, fill=hp)) +
+  geom_density() +
+  labs(title='Distribution of Displacement vs. Horse Power', x='', y='Density') 
+```
+
+## Proportion of categories of a variable
+
+**Answer:** A mosaic plot can show this.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+# Code from http://stackoverflow.com/questions/19233365/how-to-create-a-marimekko-mosaic-plot-in-ggplot2
+ggMMplot <- function(var1, var2){
+  require(ggplot2)
+  levVar1 <- length(levels(var1))
+  levVar2 <- length(levels(var2))
+
+  jointTable <- prop.table(table(var1, var2))
+  plotData <- as.data.frame(jointTable)
+  plotData$marginVar1 <- prop.table(table(var1))
+  plotData$var2Height <- plotData$Freq / plotData$marginVar1
+  plotData$var1Center <- c(0, cumsum(plotData$marginVar1)[1:levVar1 -1]) +
+    plotData$marginVar1 / 2
+
+  ggplot(plotData, aes(var1Center, var2Height)) +
+    geom_bar(stat = "identity", aes(width = marginVar1, fill = var2), col = "Black") +
+    geom_text(aes(label = as.character(var1), x = var1Center, y = 1.05)) 
+  }
+
+ggMMplot(diamonds$cut, diamonds$clarity)
+```
+
+## Spatial dependency of a variable
+
+**Answer:** A map.
+
+**Example:**
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+murder <- subset(crime, offense == "murder")
+qmplot(lon, lat, data = murder, colour = I('red'), size = I(3), darken = .3)
+```
+
+\pagebreak
+
+
+# Credit card balances of 400 individuals are given in the data file \texttt{Credit.csv}. The goal is to find which explanatory variables are affecting the card balance. Based on this data, answer the following questions. Justify your answer by providing a suitable plot in each case. 
+
+```{r}
+credit <- read.csv('Credit.csv')
+head(credit)
+```
+
+## a) Do you think number of cards has anything to do with higher balance? 
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+ggplot(credit, aes(x=factor(Cards), y=Balance)) +
+  geom_boxplot() +
+  labs(title="Balance by Number of Cards", x="Number of Cards")
+```
+
+There does not appear to be a linear relationship between number of cards and balance. Although people with 6 and 7 cards appear to have the highest balance by median.
+
+## b) Do you think that higher balances can be attributed to individual’s studentship status?
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+ggplot(credit, aes(x=factor(Student), y=Balance)) +
+  geom_boxplot() +
+  labs(title="Student Status by Number of Cards", x="Student")
+```
+
+There appears to be clear visual evidence that being a student has a positive correlation to credit card balance. As most of us know from first hand experience.
+
+## c) Does higher limit causes higher balance? 
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+fit <- lm(credit$Balance ~ credit$Limit)
+r.sq <- summary(fit)$adj.r.squared
+
+ggplot(credit, aes(x=Limit, y=Balance)) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  labs(title="Student Status by Number of Cards", x="Student")
+  
+```
+
+With an adjusted $R^2$ of `r r.sq`, there is a strong positive correlation between limit and balance. 
+
+
+## d) Is there any interaction effect of Student and limit on Balance?
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+credit$Student <- as.numeric(credit$Student) - 1
+fit <- lm(credit$Balance ~ (credit$Student + credit$Limit)^2)
+sum.fit <- summary(fit)
+p.val <- sum.fit$coefficients[4,4]
+```
+
+With a p-value of `r p.val`, there is not enough evidence to say that the interaction effect is significantly different than zero.
+
+## e) Is there any interaction effect of Income and Ethnicity on Balance?
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+credit$Ethnicity <- as.numeric(credit$Ethnicity) - 1
+fit <- lm(credit$Balance ~ (credit$Income + credit$Ethnicity)^2)
+sum.fit <- summary(fit)
+eth.p.val <- sum.fit$coefficients[3,4]
+inc.eth.p.val <- sum.fit$coefficients[4,4]
+```
+
+There doesn't appear to be any effect caused by Ethnicity, with a p-value of `r eth.p.val`, and the p-value for the interaction effect is `r inc.eth.p.val` which is not less than 0.05, and thus we cannot say that the effect is significantly different than zero.
+
+## f) Is there any 3-way interaction effect of Income, Ethnicity and Student on Balance?
+
+```{r fig.height=4, fig.width=5, fig.align='center'}
+fit <- lm(credit$Balance ~ (credit$Income + credit$Ethnicity + credit$Student)^3)
+sum.fit <- summary(fit)
+sum.fit
+eth.p.val <- sum.fit$coefficients[3,4]
+inc.eth.stu.p.val <- sum.fit$coefficients[8,4]
+```
+
+With a p-value of `r inc.eth.stu.p.val`, there is no three-way interaction effect between Income, Ethnicity, and Student status on the balance.
+
+
+# 3. Creating dashboard. For this problem you will start with \texttt{dashboard.R} as a template. Modify this template and create a new dashboard according to the instruction below;
+
+
+## a) Inside \texttt{sidebarMenu}, create a new \texttt{menuItem} called “My state crime”
+
+## b) Inside \texttt{dashboardBody} \texttt{tabItems}, create a new \texttt{tabItem} and make the header “My state crime map goes here"
+
+## c) Inside the newly created \texttt{tabItem} create a \texttt{fluidRow} using column instead of box which has following features. For example codes, review the link  https://github.com/mamajumder/usa-crime/blob/master/ui.R
+
+### Use first 5 columns to create a \texttt{wellPanel} where there will be one \texttt{selectInput} and one \texttt{sliderInput}. \texttt{selectInput} should allow to select a specific crime rate to display while \texttt{sliderInput} will use a specific year of crime rate. For this use \texttt{usaCrimeDat.rds}
+
+### Use 6 columns to show the state crime map of USA colored by crime rate.
+
+## d) Inside server add a new output of the state crime map so that map can be interactively generated based on crime rate and the year selected.
+
