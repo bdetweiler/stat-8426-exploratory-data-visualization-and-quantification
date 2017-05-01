@@ -1,0 +1,182 @@
+---
+title: "Assignment 6"
+author: "Brian Detweiler"
+date: "May 4, 2017"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.height=4, fig.width=5, fig.align="center")
+library(knitr)
+library(TSA)
+library(ggplot2)
+library(reshape2)
+library(dplyr)
+library(GGally)
+library(ggmap)
+library(productplots)
+```
+
+# 1. Factors of diabetes: For this problem please use the \texttt{diabetes.csv} data file  uploaded on the  blackboard. Our goal is to understand what factors are important for diabetes. To serve this  purpose, write a short report that has the following information
+
+```{r}
+set.seed(48548493)
+dat <- read.csv('diabetes.csv')
+```
+
+
+## a) Summary or overview of the data
+
+```{r}
+summary(dat)
+
+# Exploratory Data Analysis Step
+# ggpairs(dat)
+```
+## b) Five plots showing important factors of diabetes. Include brief descriptions of what each plot is revealing.
+
+### Age vs. Diabetes
+
+```{r}
+dat.mod <- dat %>% filter(!is.na(Diabetes)) 
+
+ggplot(dat.mod, aes(x=Gender, y=Diabetes)) +
+  geom_boxplot() +
+  labs(title="Age is a Factor in Diabetes")
+  labs(title="Age is a Factor in Diabetes")
+ 
+ggplot(data = dat.mod, aes(x=Age, y=as.numeric(Diabetes)-1)) +
+  geom_point() + 
+  geom_smooth(method = "loess") +
+  labs(title="Loess Regression of Age and Diabetes", y="Has Diabetes")
+  
+```
+
+We can see that by the upper and lower quantiles of the "Yes" and "No" categorical variables, diabetes tends to have most of its effect on people over the age of 50. 
+
+### Gender vs. Diabetes
+
+```{r}
+# Female = 0
+# Male = 1
+
+dat.moz <- dat.mod %>% group_by(Gender, Diabetes) %>% summarise(counts = n())
+prodplot(data=dat.moz, counts~Gender + Diabetes, c("vspine","hspine"), na.rm=T,subset=(level==2)) +
+  aes(fill=Diabetes)
+
+
+# Male has diabetes
+O11 <- dat.moz[[4,3]]
+# Female has diabetes
+O12 <- dat.moz[[2,3]]
+# Male no diabetes
+O21 <- dat.moz[[3,3]]
+# Female no diabetes
+O22 <- dat.moz[[1,3]]
+
+
+C1 <- O11 + O21
+C2 <- O12 + O22
+
+n1 <- O11 + O12
+n2 <- O21 + O22
+N <- n1 + n2
+
+T1 <- (sqrt(N) * (O11 * O22 - O12 * O21)) / sqrt(as.numeric(n1) * as.numeric(n2) * as.numeric(C1) * as.numeric(C2))
+```
+
+There appears to be a larger proportion of males who have diabetes.
+
+|               | Male | Female  | Total | 
+|---|---|---|---|---|
+| Has Diabetes  | 403  | 357     | 760   |  
+| No Diabetes   | 4506 | 4592    | 9098  |   
+|---|---|---|---|---|
+| Total         | 4909 | 4949    | 9858  |  
+
+We can perform a Chi-squared Test for Differences in Probabilities using the 2x2 contingency table, such that
+
+$$
+\begin{split}
+  H_0 &: \text{Equal probability that a randomly selected element will be in class females or males (0, or 1)} \\
+  H_a &: \text{Probability of being in males or females is not equal}\\
+\end{split}
+$$
+
+With the test statistic
+
+$$
+\begin{split}
+  T_1 &= \frac{\sqrt{N} (O_{11} O_{22} - O_{12}O_{21})}{\sqrt{n_1 n_2 C_1 C_2}} \\
+  &= \frac{\sqrt{`r N`} (`r O11` \cdot `r O12` - `r O12` \cdot `r O21`)}{\sqrt{`r n1` \cdot `r n2` \cdot `r C1` \cdot `r C2`}} \\
+  &= `r T1`
+\end{split}
+$$
+
+Our test statistic produces a Z-value of `r T1`, which is less than 1.96, so our p-value is 0.0646 > 0.05. We cannot say that these populations are different from each other.
+
+### BMI vs. Diabetes
+
+```{r}
+ggplot(dat.mod, aes(x=Diabetes, y=BMI)) +
+  geom_boxplot() +
+  labs(title="BMI is a Factor in Diabetes")
+
+dat.mod <- dat.mod %>% filter(!is.na(BMI))
+
+ggplot(data = dat.mod, aes(x=BMI, y=as.numeric(Diabetes)-1)) +
+  geom_point() + 
+  geom_smooth(method = "loess") +
+  labs(title="Loess Regression of BMI and Diabetes", y="Has Diabetes")
+```
+
+BMI does appear to have a positive effect on Diabetes.
+
+### BPSysAve vs. Diabetes
+
+```{r}
+ggplot(dat.mod, aes(x=Diabetes, y=BPSysAve)) +
+  geom_boxplot() +
+  labs(title="BPSysAve is a Factor in Diabetes")
+
+dat.mod <- dat.mod %>% filter(!is.na(BMI))
+
+ggplot(data = dat.mod, aes(x=BPSysAve, y=as.numeric(Diabetes)-1)) +
+  geom_point() + 
+  geom_smooth(method = "loess") +
+  labs(title="Loess Regression of BPSysAve and Diabetes", y="Has Diabetes")
+```
+
+The effect of BPSysAve appears to be uncertain. We can't say much about this.
+
+
+### Pulse vs. Diabetes
+
+```{r}
+ggplot(dat.mod, aes(x=Diabetes, y=Pulse)) +
+  geom_boxplot() +
+  labs(title="BPSysAve is a Factor in Diabetes")
+
+dat.mod <- dat.mod %>% filter(!is.na(Pulse))
+
+ggplot(data = dat.mod, aes(x=Pulse, y=as.numeric(Diabetes)-1)) +
+  geom_point() + 
+  geom_smooth(method = "loess") +
+  labs(title="Loess Regression of Pulse and Diabetes", y="Has Diabetes")
+```
+
+Pulse doesn't appear to have any effect on diabetes.
+
+## c) Fit a model and provide the summary
+
+Of the plots shown above, BMI seems to be the biggest factor so we'll fit a model to it.
+
+```{r}
+model <- glm(Diabetes ~ BMI, family=binomial(link='logit'), data=dat.mod)
+summary(model)
+```
+
+## d) Your conclusion
+
+We have a statisticially significant coefficient with BMI with a very low p-value. Therefore we can say that BMI absolutely has a positivie impact on Diabetes.
+
